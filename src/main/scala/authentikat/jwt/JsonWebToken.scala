@@ -4,6 +4,7 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.apache.commons.codec.binary.Base64.encodeBase64URLSafeString
 import org.apache.commons.codec.binary.Base64.decodeBase64
+import org.joda.time.DateTime
 
 object JsonWebToken {
   import JsonWebSignature.HexToString._
@@ -69,6 +70,10 @@ object JsonWebToken {
     import org.json4s.DefaultFormats
     implicit val formats = DefaultFormats
 
+    if (jwt.length <= 0) {
+      return false
+    }
+
     val sections = jwt.split("\\.")
 
     val headerJsonString = new String(decodeBase64(sections(0)), "UTF-8")
@@ -78,6 +83,26 @@ object JsonWebToken {
         JsonWebSignature(header.algorithm.getOrElse("none"), sections(0) + "." + sections(1), key))
 
     sections(2).contentEquals(signature)
+  }
+
+
+  /**
+   * Checks JWT exp against the current DateTime to determin if the token is expired
+   * @param jwt
+   * @param key
+   * @return true if the current DateTime is greater or equal to the exp
+   */
+
+  def isExpired(jwt: String, key: String): Boolean = {
+    import org.json4s.DefaultFormats
+    implicit val formats = DefaultFormats
+  
+    val sections = jwt.split("\\.")
+
+    val headerJsonString = new String(decodeBase64(sections(0)), "UTF-8")
+    val header = JwtHeader.fromJsonString(headerJsonString)
+
+    header.exp.fold(true)(dt => dt.getMillis <= DateTime.now.getMillis)
   }
 
 }
